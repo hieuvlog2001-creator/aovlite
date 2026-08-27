@@ -160,8 +160,8 @@ static std::unordered_map<int, id<MTLTexture>> g_c1IconTextures;
 static std::unordered_map<int, id<MTLTexture>> g_c2IconTextures;
 @implementation ImGuiDrawView
 #pragma mark - Globals
-static bool MenDeal = true;
-static bool g_initReady = true; // true khi initial_setup() hoàn thành
+static bool MenDeal = false;
+static bool g_initReady = false; // true khi initial_setup() hoàn thành
 static bool showQuickToggle = false;
 static bool qtShowAim = true;
 static bool qtShowAuto = true;
@@ -670,15 +670,7 @@ static UIImage *UIImageFromRawPNG(const unsigned char *data, size_t len) {
                                               action:@selector(btnPanned:)];
   [self.aimToggleBtn addGestureRecognizer:pan1];
   self.aimToggleBtn.hidden = !(showQuickToggle && qtShowAim);
-  UIWindow *window = self.view.window;
-
-if (!window) {
-    window = [UIApplication sharedApplication].windows.firstObject;
-}
-
-if (!window) {
-    return;
-}
+  UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
   [window addSubview:self.aimToggleBtn];
   self.autoToggleBtn = [UIButton buttonWithType:UIButtonTypeCustom];
   self.autoToggleBtn.frame = CGRectMake(0, 0, kBtnSize, kBtnSize);
@@ -745,7 +737,6 @@ if (!window) {
                                               action:@selector(btnPanned:)];
   [self.menuToggleBtn addGestureRecognizer:pan4];
   [window addSubview:self.menuToggleBtn];
-  [window bringSubviewToFront:self.menuToggleBtn];
 }
 static void HapticLight() {
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -2927,14 +2918,21 @@ static void DrawBotroESP() {
                                                   blue:0
                                                  alpha:0];
   self.mtkView.clipsToBounds = YES;
-LoadConfig();
-FetchOnlineConfig();
+  LoadConfig();
+  FetchOnlineConfig();
 
-g_initReady = true;
+  // Tạo icon menu ngay khi MTKView khởi tạo.
+  // Không phụ thuộc initial_setup(), vì initial_setup() có thể mất thời gian
+  // do FindMethodOffset/Hook. Icon menu vẫn có thể bấm trong lúc game khởi động.
+  [self setupQuickToggleButtons];
 
-dispatch_async(dispatch_get_main_queue(), ^{
-    [self setupQuickToggleButtons];
-});
+  // Chạy phần setup/hook ở background để không chặn việc hiển thị icon menu.
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+    initial_setup();
+    dispatch_async(dispatch_get_main_queue(), ^{
+      g_initReady = true;
+    });
+  });
 }
 #pragma mark - Touch
 - (void)updateIOWithTouchEvent:(UIEvent *)event {
@@ -2989,7 +2987,7 @@ dispatch_async(dispatch_get_main_queue(), ^{
     ImGui::GetFont()->Scale = 15.f / ImGui::GetFont()->FontSize;
     fontScaleSet = true;
   }
-  // Chờ initial_setup hoàn thành, hiển thị loading indicator
+  // Chờ initial_setup hoàn thành cho phần ImGui/hook; icon menu UIKit đã hiển thị từ viewDidLoad
   if (!g_initReady) {
     ImDrawList *dl = ImGui::GetForegroundDrawList();
     static float dotAnim = 0.f;
