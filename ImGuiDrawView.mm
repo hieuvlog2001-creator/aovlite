@@ -2920,16 +2920,12 @@ static void DrawBotroESP() {
   self.mtkView.clipsToBounds = YES;
   LoadConfig();
   FetchOnlineConfig();
-
-  // Tạo icon menu ngay khi MTKView khởi tạo.
-  // Không phụ thuộc initial_setup(), vì initial_setup() có thể mất thời gian
-  // do FindMethodOffset/Hook. Icon menu vẫn có thể bấm trong lúc game khởi động.
-  [self setupQuickToggleButtons];
-
-  // Chạy phần setup/hook ở background để không chặn việc hiển thị icon menu.
+  // Chuyển initial_setup sang background thread để tránh lag main thread khi
+  // game khởi động
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
     initial_setup();
     dispatch_async(dispatch_get_main_queue(), ^{
+      [self setupQuickToggleButtons];
       g_initReady = true;
     });
   });
@@ -2987,7 +2983,7 @@ static void DrawBotroESP() {
     ImGui::GetFont()->Scale = 15.f / ImGui::GetFont()->FontSize;
     fontScaleSet = true;
   }
-  // Chờ initial_setup hoàn thành cho phần ImGui/hook; icon menu UIKit đã hiển thị từ viewDidLoad
+  // Chờ initial_setup hoàn thành, hiển thị loading indicator
   if (!g_initReady) {
     ImDrawList *dl = ImGui::GetForegroundDrawList();
     static float dotAnim = 0.f;
