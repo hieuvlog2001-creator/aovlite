@@ -670,7 +670,15 @@ static UIImage *UIImageFromRawPNG(const unsigned char *data, size_t len) {
                                               action:@selector(btnPanned:)];
   [self.aimToggleBtn addGestureRecognizer:pan1];
   self.aimToggleBtn.hidden = !(showQuickToggle && qtShowAim);
-  UIWindow *window = [UIApplication sharedApplication].windows.firstObject;
+  UUIWindow *window = self.view.window;
+
+if (!window) {
+    window = [UIApplication sharedApplication].windows.firstObject;
+}
+
+if (!window) {
+    return;
+}
   [window addSubview:self.aimToggleBtn];
   self.autoToggleBtn = [UIButton buttonWithType:UIButtonTypeCustom];
   self.autoToggleBtn.frame = CGRectMake(0, 0, kBtnSize, kBtnSize);
