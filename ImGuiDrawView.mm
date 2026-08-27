@@ -616,7 +616,7 @@ static bool (*_IsSkinAvailable)(void *, int skinCfgId) = nullptr;
 static uint32_t (*old_GetSkinCfg)(uint32_t heroId, uint32_t skinId) = nullptr;
 static uint (*old_GetHeroSkinID)(uint heroId, uint skinId) = nullptr;
 static void *(*_GetSkinOrig)(void *, int skinId) = nullptr;
-static void *(*_Unpack_CommonInfo)(void *, void *, unsigned int) = nullptr;
+static int (*_Unpack_CommonInfo)(void *, void *, unsigned int) = nullptr;
 void (*LobbyLogic_Updatelogic_orig)(void *, int);
 void *(*LobbyLogic_PlayerBase_orig)(void *, unsigned int);
 void (*CBattleSystem_Update)(void *);
@@ -1291,10 +1291,10 @@ void _CameraSystem_Update(void *i) {
     OnCameraHeightChanged(i);
   CameraSystem_Update_orig(i);
 }
-bool _IsHaveHeroSkin(void *i, int h, int s, bool inc) {
+bool _IsHaveHeroSkin(void *i, uint h, uint s, bool inc) {
   return (i && unlockSkin) ? true : IsHaveHeroSkin(i, h, s, inc);
 }
-bool _CanUseSkin(void *i, int h, int s) {
+bool _CanUseSkin(void *i, uint h, uint s) {
   if (i && unlockSkin) {
     enableSkin = true;
     cspHeroID = h;
@@ -1303,7 +1303,7 @@ bool _CanUseSkin(void *i, int h, int s) {
   }
   return CanUseSkin(i, h, s);
 }
-int _GetHeroWearSkinId(void *i, int h) {
+uint _GetHeroWearSkinId(void *i, uint h) {
   if (i && unlockSkin && enableSkin && cspHeroID == h) {
     if (IsSSSSkin(cspHeroID, cspSkinID))
       return g_sss_fix_skin;
@@ -1325,7 +1325,7 @@ int _Unpack(void *i, void *buf, unsigned int ver) {
   static size_t off_wSkinID = FieldOffset("AovTdr.dll", "CSProtocol",
                                           "COMDT_HERO_COMMON_INFO", "wSkinID");
   if (i && unlockSkin) {
-    void *r = UnpackOrig(i, buf, ver);
+    int r = UnpackOrig(i, buf, ver);
     void *hi = *(void **)((uintptr_t)i + off_stBaseInfo);
     if (hi) {
       void *ci = *(void **)((uintptr_t)hi + off_stCommonInfo);
@@ -1382,7 +1382,7 @@ void *_GetSkin_hook(void *instance, int skinId) {
   return _GetSkinOrig(instance, skinId);
 }
 int _Unpack_CommonInfo_hook(void *instance, void *buf, unsigned int ver) {
-  void *result = _Unpack_CommonInfo(instance, buf, ver);
+  int result = _Unpack_CommonInfo(instance, buf, ver);
   if (result && instance && unlockSkin && enableSkin) {
     static size_t off_h = 0, off_s = 0;
     if (!off_h) {
@@ -1896,7 +1896,7 @@ static void *(*GetCurrentRankDetail_orig)(void *) = nullptr;
 
 static int (*unpackTop_orig)(void *, void *, unsigned int) = nullptr;
 static int _unpackTop(void *instance, void *srcBuf, unsigned int cutVer) {
-  void *ret = unpackTop_orig(instance, srcBuf, cutVer);
+  int ret = unpackTop_orig(instance, srcBuf, cutVer);
   if (!instance || !fakerank)
     return ret;
   static size_t off_dwIsTop = 0, off_dwAdCode = 0, off_dwRank = 0;
@@ -2101,7 +2101,7 @@ void initial_setup() {
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_objCamp");
     ActorLinker_getPosition = (Vector3(*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_position");
-    ActorLinker_get_ObjID = (int (*)(void *))MethodAddr(
+    ActorLinker_get_ObjID = (uint (*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_ObjID");
     ActorLinker_get_bVisible = (bool (*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_bVisible");
@@ -2123,7 +2123,7 @@ void initial_setup() {
     LActorRoot_COM_PLAYERCAMP = (int (*)(void *))MethodAddr(
         "Project.Plugins_d.dll", "NucleusDrive.Logic", "LActorRoot",
         "GiveMyEnemyCamp");
-    LActorRoot_get_ObjID = (int (*)(void *))MethodAddr(
+    LActorRoot_get_ObjID = (uint (*)(void *))MethodAddr(
         "Project.Plugins_d.dll", "NucleusDrive.Logic", "LActorRoot",
         "get_ObjID");
     LActorRoot_get_location = (VInt3(*)(void *))MethodAddr(
@@ -4413,7 +4413,7 @@ void Muabando() {
       return a.index < b.index;
     });
     if (!rdy.empty() && lastId != rdy[0].id) {
-      SendPlayerChoseEquipSkillCommand(bes, rdy[0].index);
+      SendPlayerChoseEquipSkillCommand(bes, 4, (uint8_t)rdy[0].index);
       lastId = rdy[0].id;
     }
   }
