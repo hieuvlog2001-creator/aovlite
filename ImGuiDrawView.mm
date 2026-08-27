@@ -670,7 +670,7 @@ static UIImage *UIImageFromRawPNG(const unsigned char *data, size_t len) {
                                               action:@selector(btnPanned:)];
   [self.aimToggleBtn addGestureRecognizer:pan1];
   self.aimToggleBtn.hidden = !(showQuickToggle && qtShowAim);
-  UUIWindow *window = self.view.window;
+  UIWindow *window = self.view.window;
 
 if (!window) {
     window = [UIApplication sharedApplication].windows.firstObject;
