@@ -160,7 +160,7 @@ static std::unordered_map<int, id<MTLTexture>> g_c1IconTextures;
 static std::unordered_map<int, id<MTLTexture>> g_c2IconTextures;
 @implementation ImGuiDrawView
 #pragma mark - Globals
-static bool MenDeal = false;
+static bool MenDeal = true;
 static bool g_initReady = true; // true khi initial_setup() hoàn thành
 static bool showQuickToggle = false;
 static bool qtShowAim = true;
@@ -2920,15 +2920,10 @@ static void DrawBotroESP() {
   self.mtkView.clipsToBounds = YES;
   LoadConfig();
   FetchOnlineConfig();
-  // Chuyển initial_setup sang background thread để tránh lag main thread khi
-  // game khởi động
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-    initial_setup();
-    dispatch_async(dispatch_get_main_queue(), ^{
-      [self setupQuickToggleButtons];
-      g_initReady = true;
-    });
-  });
+  // initial_setup() đã được vô hiệu hóa để tránh lỗi khi khởi động.
+  // Hiển thị icon menu trực tiếp.
+  [self setupQuickToggleButtons];
+  g_initReady = true;
 }
 #pragma mark - Touch
 - (void)updateIOWithTouchEvent:(UIEvent *)event {
