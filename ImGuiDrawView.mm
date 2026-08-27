@@ -745,6 +745,7 @@ if (!window) {
                                               action:@selector(btnPanned:)];
   [self.menuToggleBtn addGestureRecognizer:pan4];
   [window addSubview:self.menuToggleBtn];
+  [window bringSubviewToFront:self.menuToggleBtn];
 }
 static void HapticLight() {
   dispatch_async(dispatch_get_main_queue(), ^{
