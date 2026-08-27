@@ -2918,12 +2918,14 @@ static void DrawBotroESP() {
                                                   blue:0
                                                  alpha:0];
   self.mtkView.clipsToBounds = YES;
-  LoadConfig();
-  FetchOnlineConfig();
-  // initial_setup() đã được vô hiệu hóa để tránh lỗi khi khởi động.
-  // Hiển thị icon menu trực tiếp.
-  [self setupQuickToggleButtons];
-  g_initReady = true;
+LoadConfig();
+FetchOnlineConfig();
+
+g_initReady = true;
+
+dispatch_async(dispatch_get_main_queue(), ^{
+    [self setupQuickToggleButtons];
+});
 }
 #pragma mark - Touch
 - (void)updateIOWithTouchEvent:(UIEvent *)event {
