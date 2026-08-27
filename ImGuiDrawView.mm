@@ -161,7 +161,7 @@ static std::unordered_map<int, id<MTLTexture>> g_c2IconTextures;
 @implementation ImGuiDrawView
 #pragma mark - Globals
 static bool MenDeal = false;
-static bool g_initReady = false; // true khi initial_setup() hoàn thành
+static bool g_initReady = true; // true khi initial_setup() hoàn thành
 static bool showQuickToggle = false;
 static bool qtShowAim = true;
 static bool qtShowAuto = true;
