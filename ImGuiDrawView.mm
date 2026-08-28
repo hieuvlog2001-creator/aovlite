@@ -1241,10 +1241,27 @@ void _SkillSlot_LateUpdate(void *instance, int deltaTime) {
   if (SkillSlot_LateUpdate)
     SkillSlot_LateUpdate(instance, deltaTime);
 }
-bool _SetVisible(void *i, int camp, bool vis, bool sync) {
-  if (i && HackMap)
-    vis = true;
-  return SetVisible(i, camp, vis, sync);
+static bool _SetVisible(void *i, int camp, bool vis, bool sync) {
+    if (i == nullptr)
+        return false;
+
+    if (HackMap) {
+        switch (camp) {
+            case 1:
+            case 2:
+            case 110:
+            case 255:
+                vis = true;
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (SetVisible)
+        return SetVisible(i, camp, vis, sync);
+
+    return false;
 }
 
 bool _get_IsHostProfile(void *i) {
