@@ -89,17 +89,6 @@ static inline void CacheScreenMetrics() {
           UF, MethodOffset(dll, ns, cls, method), (void *)hookFn);             \
     }                                                                          \
   }
-#define HookMethodN(dll, ns, cls, method, nparams, hookFn, origFn)           \
-  {                                                                            \
-    uint64_t _off = Unity::FindMethodOffsetN(OBFUSCATE(dll), OBFUSCATE(ns),   \
-                                             OBFUSCATE(cls), OBFUSCATE(method), nparams); \
-    if (_off) {                                                               \
-      NSString *result_##origFn = StaticInlineHookPatch(UF, _off, nullptr);   \
-      if (result_##origFn) {                                                   \
-        *(void **)(&origFn) = StaticInlineHookFunction(UF, _off, (void *)hookFn); \
-      }                                                                        \
-    }                                                                          \
-  }
 #define VaPatchBytes(offset, hex)                                              \
   StaticInlineHookPatch(UF, offset, (char *)(hex))
 #define VaANO(offset, hex) StaticInlineHookPatch(ANO, offset, (char *)(hex))
@@ -115,16 +104,7 @@ static inline void CacheScreenMetrics() {
     }                                                                          \
   }
 #define VaPatchBytes(offset, hex) ((void)0)
-#define HookMethodN(dll, ns, cls, method, nparams, hookFn, origFn)          \
-  {                                                                            \
-    uint64_t _off =                                                            \
-        Unity::FindMethodOffsetN(OBFUSCATE(dll), OBFUSCATE(ns),               \
-                                 OBFUSCATE(cls), OBFUSCATE(method), nparams); \
-    if (_off) {                                                               \
-      *(void **)(&origFn) =                                                   \
-          StaticInlineHookFunction(UF, _off, (void *)hookFn);                 \
-    }                                                                         \
-  }
+#define VaANO(offset, hex) ((void)0)
 #endif
 
 #ifndef DEBUG_AIM_ANHVU
@@ -558,21 +538,21 @@ void *(*get_talentSystem)(void *);
 int (*GetGoldCoinInBattle)(void *);
 void (*SendBuyEquipFrameCommand)(void *, int, bool);
 void (*SendSellEquipFrameCommand)(void *, int);
-void (*SendPlayerChoseEquipSkillCommand)(void *, int, uint8_t);
+void (*SendPlayerChoseEquipSkillCommand)(void *, int);
 int (*GetEquipActiveSkillCD)(void *, int);
 int (*GetTalentCDTime)(void *, int);
 void *(*LEquipComponent_GetEquips)(void *);
 bool (*ActorLinker_IsHostPlayer)(void *);
 int (*ActorLinker_COM_PLAYERCAMP)(void *);
 Vector3 (*ActorLinker_getPosition)(void *);
-uint (*ActorLinker_get_ObjID)(void *);
+int (*ActorLinker_get_ObjID)(void *);
 bool (*ActorLinker_get_bVisible)(void *);
 int (*ActorLinker_ActorTypeDef)(void *);
 int (*ValueLinkerComponent_get_actorEp)(void *);
 int (*ValueLinkerComponent_get_actorSoulLevel)(void *);
 void *(*LActorRoot_LHeroWrapper)(void *);
 int (*LActorRoot_COM_PLAYERCAMP)(void *);
-uint (*LActorRoot_get_ObjID)(void *);
+int (*LActorRoot_get_ObjID)(void *);
 VInt3 (*LActorRoot_get_location)(void *);
 VInt3 (*LActorRoot_get_forward)(void *);
 void *(*LActorRoot_get_PlayerMovement)(void *);
@@ -605,18 +585,18 @@ void (*FrameSyncRet)(void *);
 void (*SyncReportRet)(void *);
 bool (*IsHaveHeroSkin)(void *, int, int, bool);
 bool (*CanUseSkin)(void *, int, int);
-uint (*GetHeroWearSkinId)(void *, int);
-int (*UnpackOrig)(void *, void *, unsigned int);
+int (*GetHeroWearSkinId)(void *, int);
+void *(*UnpackOrig)(void *, void *, unsigned int);
 void (*OnClickSelectHeroSkin_orig)(void *, int, int);
 void (*RefreshHeroPanel)(void *, bool, bool, bool);
 void (*RefreshSelectHeroInfo)(void *);
 void (*HeroSelect_OnSkinSelect_orig)(void *, void *);
 static void *(*_GetHeroSkin)(int heroID, int skinID) = nullptr;
 static bool (*_IsSkinAvailable)(void *, int skinCfgId) = nullptr;
-static uint32_t (*old_GetSkinCfg)(uint32_t heroId, uint32_t skinId) = nullptr;
+static int (*old_GetSkinCfg)(int heroId, int skinId) = nullptr;
 static uint (*old_GetHeroSkinID)(uint heroId, uint skinId) = nullptr;
 static void *(*_GetSkinOrig)(void *, int skinId) = nullptr;
-static int (*_Unpack_CommonInfo)(void *, void *, unsigned int) = nullptr;
+static void *(*_Unpack_CommonInfo)(void *, void *, unsigned int) = nullptr;
 void (*LobbyLogic_Updatelogic_orig)(void *, int);
 void *(*LobbyLogic_PlayerBase_orig)(void *, unsigned int);
 void (*CBattleSystem_Update)(void *);
@@ -1261,27 +1241,10 @@ void _SkillSlot_LateUpdate(void *instance, int deltaTime) {
   if (SkillSlot_LateUpdate)
     SkillSlot_LateUpdate(instance, deltaTime);
 }
-static bool _SetVisible(void *i, int camp, bool vis, bool sync) {
-    if (i == nullptr)
-        return false;
-
-    if (HackMap) {
-        switch (camp) {
-            case 1:
-            case 2:
-            case 110:
-            case 255:
-                vis = true;
-                break;
-            default:
-                break;
-        }
-    }
-
-    if (SetVisible)
-        return SetVisible(i, camp, vis, sync);
-
-    return false;
+bool _SetVisible(void *i, int camp, bool vis, bool sync) {
+  if (i && HackMap)
+    vis = true;
+  return SetVisible(i, camp, vis, sync);
 }
 
 bool _get_IsHostProfile(void *i) {
@@ -1308,10 +1271,10 @@ void _CameraSystem_Update(void *i) {
     OnCameraHeightChanged(i);
   CameraSystem_Update_orig(i);
 }
-bool _IsHaveHeroSkin(void *i, uint h, uint s, bool inc) {
+bool _IsHaveHeroSkin(void *i, int h, int s, bool inc) {
   return (i && unlockSkin) ? true : IsHaveHeroSkin(i, h, s, inc);
 }
-bool _CanUseSkin(void *i, uint h, uint s) {
+bool _CanUseSkin(void *i, int h, int s) {
   if (i && unlockSkin) {
     enableSkin = true;
     cspHeroID = h;
@@ -1320,7 +1283,7 @@ bool _CanUseSkin(void *i, uint h, uint s) {
   }
   return CanUseSkin(i, h, s);
 }
-uint _GetHeroWearSkinId(void *i, uint h) {
+int _GetHeroWearSkinId(void *i, int h) {
   if (i && unlockSkin && enableSkin && cspHeroID == h) {
     if (IsSSSSkin(cspHeroID, cspSkinID))
       return g_sss_fix_skin;
@@ -1328,7 +1291,7 @@ uint _GetHeroWearSkinId(void *i, uint h) {
   }
   return GetHeroWearSkinId(i, h);
 }
-int _Unpack(void *i, void *buf, unsigned int ver) {
+void *_Unpack(void *i, void *buf, unsigned int ver) {
   static size_t off_stBaseInfo =
       FieldOffset("AovTdr.dll", "CSProtocol", "COMDT_CHOICEHERO", "stBaseInfo");
   static size_t off_stCommonInfo =
@@ -1342,7 +1305,7 @@ int _Unpack(void *i, void *buf, unsigned int ver) {
   static size_t off_wSkinID = FieldOffset("AovTdr.dll", "CSProtocol",
                                           "COMDT_HERO_COMMON_INFO", "wSkinID");
   if (i && unlockSkin) {
-    int r = UnpackOrig(i, buf, ver);
+    void *r = UnpackOrig(i, buf, ver);
     void *hi = *(void **)((uintptr_t)i + off_stBaseInfo);
     if (hi) {
       void *ci = *(void **)((uintptr_t)hi + off_stCommonInfo);
@@ -1372,7 +1335,7 @@ void _HeroSelect_OnSkinSelect(void *i, void *ev) {
     RefreshSelectHeroInfo(i);
   HeroSelect_OnSkinSelect_orig(i, ev);
 }
-uint32_t _GetSkinCfg_hook(uint32_t heroId, uint32_t skinId) {
+int _GetSkinCfg_hook(int heroId, int skinId) {
   if (unlockSkin && IsSSSSkin(heroId, skinId))
     return heroId * 100 + skinId;
   return old_GetSkinCfg(heroId, skinId);
@@ -1398,8 +1361,8 @@ void *_GetSkin_hook(void *instance, int skinId) {
   }
   return _GetSkinOrig(instance, skinId);
 }
-int _Unpack_CommonInfo_hook(void *instance, void *buf, unsigned int ver) {
-  int result = _Unpack_CommonInfo(instance, buf, ver);
+void *_Unpack_CommonInfo_hook(void *instance, void *buf, unsigned int ver) {
+  void *result = _Unpack_CommonInfo(instance, buf, ver);
   if (result && instance && unlockSkin && enableSkin) {
     static size_t off_h = 0, off_s = 0;
     if (!off_h) {
@@ -1911,9 +1874,9 @@ static AimDrawState g_aimDraw = {};
 static void *(*GetMasterRoleInfo_orig)(void *) = nullptr;
 static void *(*GetCurrentRankDetail_orig)(void *) = nullptr;
 
-static int (*unpackTop_orig)(void *, void *, unsigned int) = nullptr;
-static int _unpackTop(void *instance, void *srcBuf, unsigned int cutVer) {
-  int ret = unpackTop_orig(instance, srcBuf, cutVer);
+static void *(*unpackTop_orig)(void *, void *, long) = nullptr;
+static void *_unpackTop(void *instance, void *srcBuf, long cutVer) {
+  void *ret = unpackTop_orig(instance, srcBuf, cutVer);
   if (!instance || !fakerank)
     return ret;
   static size_t off_dwIsTop = 0, off_dwAdCode = 0, off_dwRank = 0;
@@ -2100,7 +2063,7 @@ void initial_setup() {
     SendSellEquipFrameCommand = (void (*)(void *, int))MethodAddr(
         "Project_d.dll", "Assets.Scripts.GameSystem", "CBattleEquipSystem",
         "SendSellEquipFrameCommand");
-    SendPlayerChoseEquipSkillCommand = (void (*)(void *, int, uint8_t))MethodAddr(
+    SendPlayerChoseEquipSkillCommand = (void (*)(void *, int))MethodAddr(
         "Project_d.dll", "Assets.Scripts.GameSystem", "CBattleEquipSystem",
         "SendPlayerChoseEquipSkillCommand");
     GetEquipActiveSkillCD = (int (*)(void *, int))MethodAddr(
@@ -2118,7 +2081,7 @@ void initial_setup() {
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_objCamp");
     ActorLinker_getPosition = (Vector3(*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_position");
-    ActorLinker_get_ObjID = (uint (*)(void *))MethodAddr(
+    ActorLinker_get_ObjID = (int (*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_ObjID");
     ActorLinker_get_bVisible = (bool (*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ActorLinker", "get_bVisible");
@@ -2129,9 +2092,9 @@ void initial_setup() {
     ValueLinkerComponent_get_actorSoulLevel = (int (*)(void *))MethodAddr(
         "Project_d.dll", "Kyrios.Actor", "ValueLinkerComponent",
         "get_actorSoulLevel");
-    SkillSlot_RequestUseSkill = (bool (*)(void *))MethodAddrN(
+    SkillSlot_RequestUseSkill = (bool (*)(void *))MethodAddr(
         "Project_d.dll", "Assets.Scripts.GameLogic", "SkillSlot",
-        "RequestUseSkill", 0);
+        "RequestUseSkill");
     SkillSlot_ReadyUseSkill = (bool (*)(void *, bool))MethodAddr(
         "Project_d.dll", "Assets.Scripts.GameLogic", "SkillSlot",
         "ReadyUseSkill");
@@ -2140,7 +2103,7 @@ void initial_setup() {
     LActorRoot_COM_PLAYERCAMP = (int (*)(void *))MethodAddr(
         "Project.Plugins_d.dll", "NucleusDrive.Logic", "LActorRoot",
         "GiveMyEnemyCamp");
-    LActorRoot_get_ObjID = (uint (*)(void *))MethodAddr(
+    LActorRoot_get_ObjID = (int (*)(void *))MethodAddr(
         "Project.Plugins_d.dll", "NucleusDrive.Logic", "LActorRoot",
         "get_ObjID");
     LActorRoot_get_location = (VInt3(*)(void *))MethodAddr(
@@ -2226,9 +2189,9 @@ void initial_setup() {
         "Project_d.dll", "", "CameraSystem", "OnCameraHeightChanged");
     Camera_get_main = (void *(*)())MethodAddr(
         "UnityEngine.CoreModule.dll", "UnityEngine", "Camera", "get_main");
-    Camera_WorldToScreenPoint = (Vector3(*)(void *, Vector3))MethodAddrN(
+    Camera_WorldToScreenPoint = (Vector3(*)(void *, Vector3))MethodAddr(
         "UnityEngine.CoreModule.dll", "UnityEngine", "Camera",
-        "WorldToScreenPoint", 1);
+        "WorldToScreenPoint");
     Camera_WorldToViewportPoint = (Vector3(*)(void *, Vector3))MethodAddrN(
         "UnityEngine.CoreModule.dll", "UnityEngine", "Camera",
         "WorldToViewportPoint", 1);
@@ -2236,12 +2199,12 @@ void initial_setup() {
         "Project_d.dll", "Assets.Scripts.GameSystem", "CSkillButtonManager",
         "CanRequestSkill");
     g_RequestUseSkillSlot =
-        (bool (*)(void *, int, int, unsigned int, int))MethodAddrN(
+        (bool (*)(void *, int, int, unsigned int, int))MethodAddr(
             "Project_d.dll", "Assets.Scripts.GameSystem", "CSkillButtonManager",
-            "RequestUseSkillSlot", 4);
-    RefreshHeroPanel = (void (*)(void *, bool, bool, bool))MethodAddrN(
+            "RequestUseSkillSlot");
+    RefreshHeroPanel = (void (*)(void *, bool, bool, bool))MethodAddr(
         "Project_d.dll", "Assets.Scripts.GameSystem", "HeroSelectNormalWindow",
-        "RefreshHeroPanel", 3);
+        "RefreshHeroPanel");
     GetMasterRoleInfo_orig = (void *(*)(void *))MethodAddr(
         "Project_d.dll", "Assets.Scripts.GameSystem", "CRoleInfoManager",
         "GetMasterRoleInfo");
@@ -2437,8 +2400,8 @@ void initial_setup() {
                  "SampleFrameSyncData", _SyncReportRet, SyncReportRet);
     });
     timer(6.0, ^{
-      HookMethodN("Project_d.dll", "Assets.Scripts.GameSystem", "CRoleInfo",
-                  "IsHaveHeroSkin", 3, _IsHaveHeroSkin, IsHaveHeroSkin);
+      HookMethod("Project_d.dll", "Assets.Scripts.GameSystem", "CRoleInfo",
+                 "IsHaveHeroSkin", _IsHaveHeroSkin, IsHaveHeroSkin);
     });
     timer(6.5, ^{
       HookMethod("Project_d.dll", "Assets.Scripts.GameSystem", "CRoleInfo",
@@ -4430,7 +4393,7 @@ void Muabando() {
       return a.index < b.index;
     });
     if (!rdy.empty() && lastId != rdy[0].id) {
-      SendPlayerChoseEquipSkillCommand(bes, 4, (uint8_t)rdy[0].index);
+      SendPlayerChoseEquipSkillCommand(bes, rdy[0].index);
       lastId = rdy[0].id;
     }
   }
